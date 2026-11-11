@@ -1,0 +1,962 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light" />
+    <link rel="icon" href="data:," />
+    <title>DTZ AI Caption Generator</title>
+    <style>
+      :root {
+        --bg: #ffffff;
+        --surface: #f7f7f8;
+        --surface-2: #ececf1;
+        --border: #e3e3e8;
+        --border-strong: #c9c9d1;
+        --text: #0d0d0d;
+        --text-2: #40414f;
+        --text-3: #6e6e80;
+        --accent: #0f7a5c;
+        --accent-hover: #0b644b;
+        --accent-soft: #e6f4ef;
+        --danger: #b3261e;
+        --danger-soft: #fdecea;
+        --ok: #1a7f37;
+        --warn: #9a6700;
+        --radius: 12px;
+        --radius-sm: 8px;
+      }
+      * { box-sizing: border-box; }
+      html { -webkit-text-size-adjust: 100%; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+        font-size: 16px;
+        line-height: 1.55;
+      }
+      button, input, select { font: inherit; }
+      button, [role="button"], select, input:not([type="checkbox"], [type="radio"]) { min-height: 2.25rem; }
+
+      .wrap {
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 20px 16px 64px;
+      }
+
+      /* ---------- Top bar ---------- */
+      .topbar {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 6px;
+      }
+      h1 {
+        font-size: 1.55rem;
+        line-height: 1.2;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        margin: 0 0 6px;
+      }
+      .lede {
+        margin: 0;
+        color: var(--text-2);
+        font-size: 0.98rem;
+        max-width: 52ch;
+      }
+      .status-pill {
+        flex: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 6px 12px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--surface);
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--text-2);
+        cursor: pointer;
+        min-height: 2.25rem;
+      }
+      .status-pill .dot {
+        width: 9px; height: 9px; border-radius: 50%;
+        background: var(--border-strong);
+      }
+      .status-pill.online .dot { background: var(--ok); box-shadow: 0 0 0 3px rgba(26,127,55,.15); }
+      .status-pill.offline .dot { background: var(--danger); box-shadow: 0 0 0 3px rgba(179,38,30,.12); }
+      .status-pill.checking .dot { background: var(--warn); animation: pulse 1.1s ease-in-out infinite; }
+      @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+      @media (prefers-reduced-motion: reduce) {
+        .status-pill.checking .dot { animation: none; }
+      }
+
+      /* ---------- Form ---------- */
+      .panel {
+        margin-top: 22px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--bg);
+        padding: 18px;
+      }
+      label.field-label, .group-label {
+        display: block;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text-2);
+        margin: 0 0 8px;
+      }
+      .topic-input {
+        width: 100%;
+        padding: 11px 13px;
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius-sm);
+        background: var(--bg);
+        color: var(--text);
+        font-size: 1rem;
+      }
+      .topic-input:focus {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+        border-color: var(--accent);
+      }
+      .topic-input::placeholder { color: var(--text-3); }
+
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      .chip {
+        border: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--text-2);
+        border-radius: 999px;
+        padding: 6px 13px;
+        font-size: 0.85rem;
+        cursor: pointer;
+        min-height: 2.25rem;
+      }
+      .chip:hover { border-color: var(--border-strong); background: var(--surface-2); }
+
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+        margin-top: 20px;
+      }
+      @media (max-width: 560px) {
+        .grid-2 { grid-template-columns: 1fr; }
+      }
+      .seg {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .seg button {
+        border: 1px solid var(--border);
+        background: var(--bg);
+        color: var(--text-2);
+        border-radius: var(--radius-sm);
+        padding: 7px 13px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        cursor: pointer;
+        min-height: 2.25rem;
+      }
+      .seg button:hover { border-color: var(--border-strong); }
+      .seg button[aria-pressed="true"] {
+        background: var(--text);
+        border-color: var(--text);
+        color: #fff;
+        font-weight: 600;
+      }
+
+      .actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 22px;
+        flex-wrap: wrap;
+      }
+      .btn-generate {
+        flex: 1 1 200px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 9px;
+        background: var(--accent);
+        color: #fff;
+        border: 1px solid var(--accent);
+        border-radius: var(--radius-sm);
+        padding: 11px 18px;
+        font-weight: 600;
+        font-size: 1rem;
+        cursor: pointer;
+        min-height: 2.75rem;
+      }
+      .btn-generate:hover { background: var(--accent-hover); }
+      .btn-generate:disabled { opacity: .55; cursor: not-allowed; }
+      .btn-stop {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        background: var(--bg);
+        color: var(--danger);
+        border: 1px solid var(--danger);
+        border-radius: var(--radius-sm);
+        padding: 11px 18px;
+        font-weight: 600;
+        cursor: pointer;
+        min-height: 2.75rem;
+      }
+      .btn-stop.visible { display: inline-flex; }
+
+      /* ---------- Error ---------- */
+      .error-box {
+        display: none;
+        margin-top: 18px;
+        border: 1px solid #f0c6c2;
+        background: var(--danger-soft);
+        color: #7a1d17;
+        border-radius: var(--radius-sm);
+        padding: 13px 15px;
+        font-size: 0.94rem;
+      }
+      .error-box.visible { display: block; }
+      .error-box strong { display: block; margin-bottom: 2px; }
+
+      /* ---------- Results ---------- */
+      .results-head {
+        display: none;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin: 30px 0 12px;
+        flex-wrap: wrap;
+      }
+      .results-head.visible { display: flex; }
+      .results-head h2 {
+        font-size: 1.12rem;
+        margin: 0;
+        font-weight: 700;
+      }
+      .results-meta { color: var(--text-3); font-size: 0.85rem; margin-top: 2px; }
+      .btn-copy-all {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        border: 1px solid var(--border-strong);
+        background: var(--bg);
+        color: var(--text);
+        border-radius: var(--radius-sm);
+        padding: 8px 14px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        cursor: pointer;
+      }
+      .btn-copy-all:hover { background: var(--surface); }
+
+      .stream-box {
+        display: none;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--surface);
+        padding: 16px 18px;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-size: 0.95rem;
+        color: var(--text-2);
+        min-height: 90px;
+      }
+      .stream-box.visible { display: block; }
+      .stream-box .gen-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 8px;
+        font-size: 0.9rem;
+      }
+      .spinner {
+        width: 14px; height: 14px;
+        border: 2px solid var(--border-strong);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin .8s linear infinite;
+        flex: none;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) {
+        .spinner { animation-duration: 2.4s; }
+      }
+
+      .cards { display: grid; gap: 12px; }
+      .card {
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 16px 18px 13px;
+        background: var(--bg);
+      }
+      .card-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 8px;
+      }
+      .card-num {
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        color: var(--text-3);
+      }
+      .card-chars { font-size: 0.78rem; color: var(--text-3); }
+      .card-text {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-size: 1rem;
+      }
+      .card-tags {
+        margin: 9px 0 0;
+        color: var(--accent);
+        font-size: 0.93rem;
+        word-break: break-word;
+      }
+      .card-foot {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 12px;
+        padding-top: 11px;
+        border-top: 1px solid var(--surface-2);
+      }
+      .btn-copy {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--text);
+        border-radius: var(--radius-sm);
+        padding: 7px 14px;
+        font-size: 0.88rem;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .btn-copy:hover { background: var(--surface-2); }
+      .btn-copy.copied {
+        background: var(--accent-soft);
+        border-color: var(--accent);
+        color: var(--accent-hover);
+      }
+      .btn-copy svg, .btn-copy-all svg { flex: none; }
+
+      .note-stopped {
+        display: none;
+        margin-top: 12px;
+        font-size: 0.88rem;
+        color: var(--warn);
+      }
+      .note-stopped.visible { display: block; }
+
+      /* ---------- Recent ---------- */
+      .recent {
+        margin-top: 38px;
+        display: none;
+      }
+      .recent.visible { display: block; }
+      .recent-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+      .recent-head h2 { font-size: 1.05rem; margin: 0; font-weight: 700; }
+      .btn-clear {
+        border: none;
+        background: none;
+        color: var(--text-3);
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        padding: 6px 8px;
+      }
+      .btn-clear:hover { color: var(--danger); }
+      .recent-list { display: grid; gap: 8px; }
+      .recent-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        width: 100%;
+        text-align: left;
+        border: 1px solid var(--border);
+        background: var(--bg);
+        border-radius: var(--radius-sm);
+        padding: 11px 14px;
+        cursor: pointer;
+        min-height: 2.75rem;
+      }
+      .recent-item:hover { background: var(--surface); border-color: var(--border-strong); }
+      .recent-topic {
+        font-weight: 600;
+        font-size: 0.94rem;
+        color: var(--text);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .recent-meta {
+        font-size: 0.8rem;
+        color: var(--text-3);
+        white-space: nowrap;
+      }
+
+      footer {
+        margin-top: 44px;
+        padding-top: 16px;
+        border-top: 1px solid var(--surface-2);
+        color: var(--text-3);
+        font-size: 0.83rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="topbar">
+        <div>
+          <h1>AI Caption Generator</h1>
+          <p class="lede">Type a topic, pick a platform and a tone, and get five ready-to-post captions with hashtags — written for the Dark Tech Zone community.</p>
+        </div>
+        <button type="button" class="status-pill checking" id="statusPill" title="Check service status again" aria-live="polite">
+          <span class="dot" aria-hidden="true"></span>
+          <span id="statusText">Checking…</span>
+        </button>
+      </div>
+
+      <form class="panel" id="genForm" novalidate>
+        <label class="field-label" for="topicInput">Topic or keywords</label>
+        <input class="topic-input" id="topicInput" type="text" maxlength="200"
+               placeholder="e.g. morning coffee, new phone launch, Eid shopping sale"
+               autocomplete="off" />
+        <div class="chips" id="exampleChips" aria-label="Example topics"></div>
+
+        <div class="grid-2">
+          <div>
+            <span class="group-label" id="platformLabel">Platform</span>
+            <div class="seg" role="group" aria-labelledby="platformLabel" id="platformSeg"></div>
+          </div>
+          <div>
+            <span class="group-label" id="toneLabel">Tone</span>
+            <div class="seg" role="group" aria-labelledby="toneLabel" id="toneSeg"></div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button type="submit" class="btn-generate" id="btnGenerate">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3.2"/></svg>
+            Generate 5 captions
+          </button>
+          <button type="button" class="btn-stop" id="btnStop">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
+            Stop
+          </button>
+        </div>
+      </form>
+
+      <div class="error-box" id="errorBox" role="alert"></div>
+
+      <div class="results-head" id="resultsHead">
+        <div>
+          <h2 id="resultsTitle">Your captions</h2>
+          <div class="results-meta" id="resultsMeta"></div>
+        </div>
+        <button type="button" class="btn-copy-all" id="btnCopyAll">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          <span>Copy all</span>
+        </button>
+      </div>
+
+      <div class="stream-box" id="streamBox" aria-live="polite"></div>
+      <div class="cards" id="cards"></div>
+      <p class="note-stopped" id="noteStopped">Generation stopped early — showing the captions that were completed.</p>
+
+      <section class="recent" id="recentSection" aria-label="Recent generations">
+        <div class="recent-head">
+          <h2>Recent generations</h2>
+          <button type="button" class="btn-clear" id="btnClearHistory">Clear history</button>
+        </div>
+        <div class="recent-list" id="recentList"></div>
+      </section>
+
+      <footer>
+        Captions are generated live by the Dark Tech Zone AI service. Review before posting — you know your audience best.
+      </footer>
+    </div>
+
+    <script>
+      (function () {
+        "use strict";
+
+        var API_BASE = "https://dark-tech-zone-ai.vercel.app";
+        var HISTORY_KEY = "dtz-caption-history-v1";
+        var HISTORY_MAX = 8;
+
+        var PLATFORMS = ["Instagram", "TikTok", "X", "Facebook"];
+        var TONES = ["Funny", "Motivational", "Professional", "Romantic", "Roman Urdu", "Urdu"];
+        var EXAMPLES = [
+          "Morning coffee routine",
+          "New phone launch",
+          "Birthday wishes for my brother",
+          "Trip to the northern areas",
+          "Gym progress after 3 months",
+          "Eid sale at my clothing shop",
+          "Rainy day in Karachi",
+          "My first vlog"
+        ];
+
+        var state = {
+          platform: "Instagram",
+          tone: "Motivational",
+          generating: false,
+          controller: null,
+          current: null // { topic, platform, tone, captions: [{text, tags}] }
+        };
+
+        var el = {
+          form: document.getElementById("genForm"),
+          topic: document.getElementById("topicInput"),
+          chips: document.getElementById("exampleChips"),
+          platformSeg: document.getElementById("platformSeg"),
+          toneSeg: document.getElementById("toneSeg"),
+          btnGenerate: document.getElementById("btnGenerate"),
+          btnStop: document.getElementById("btnStop"),
+          errorBox: document.getElementById("errorBox"),
+          resultsHead: document.getElementById("resultsHead"),
+          resultsTitle: document.getElementById("resultsTitle"),
+          resultsMeta: document.getElementById("resultsMeta"),
+          btnCopyAll: document.getElementById("btnCopyAll"),
+          streamBox: document.getElementById("streamBox"),
+          cards: document.getElementById("cards"),
+          noteStopped: document.getElementById("noteStopped"),
+          statusPill: document.getElementById("statusPill"),
+          statusText: document.getElementById("statusText"),
+          recentSection: document.getElementById("recentSection"),
+          recentList: document.getElementById("recentList"),
+          btnClearHistory: document.getElementById("btnClearHistory")
+        };
+
+        /* ---------- Segmented controls ---------- */
+        function buildSeg(container, options, key) {
+          options.forEach(function (opt) {
+            var b = document.createElement("button");
+            b.type = "button";
+            b.textContent = opt;
+            b.setAttribute("aria-pressed", state[key] === opt ? "true" : "false");
+            b.addEventListener("click", function () {
+              state[key] = opt;
+              var btns = container.querySelectorAll("button");
+              for (var i = 0; i < btns.length; i++) {
+                btns[i].setAttribute("aria-pressed", btns[i].textContent === opt ? "true" : "false");
+              }
+            });
+            container.appendChild(b);
+          });
+        }
+        buildSeg(el.platformSeg, PLATFORMS, "platform");
+        buildSeg(el.toneSeg, TONES, "tone");
+
+        EXAMPLES.forEach(function (ex) {
+          var c = document.createElement("button");
+          c.type = "button";
+          c.className = "chip";
+          c.textContent = ex;
+          c.addEventListener("click", function () {
+            el.topic.value = ex;
+            el.topic.focus();
+          });
+          el.chips.appendChild(c);
+        });
+
+        /* ---------- API status ---------- */
+        function checkHealth() {
+          el.statusPill.className = "status-pill checking";
+          el.statusText.textContent = "Checking…";
+          fetch(API_BASE + "/api/health", { method: "GET" })
+            .then(function (r) {
+              if (!r.ok) throw new Error("bad status");
+              return r.json();
+            })
+            .then(function (data) {
+              if (data && data.status === "online") {
+                el.statusPill.className = "status-pill online";
+                el.statusText.textContent = "AI service online";
+              } else {
+                el.statusPill.className = "status-pill offline";
+                el.statusText.textContent = "AI service offline";
+              }
+            })
+            .catch(function () {
+              el.statusPill.className = "status-pill offline";
+              el.statusText.textContent = "AI service unreachable";
+            });
+        }
+        el.statusPill.addEventListener("click", checkHealth);
+        checkHealth();
+
+        /* ---------- Errors ---------- */
+        function showError(title, msg) {
+          el.errorBox.innerHTML = "";
+          var s = document.createElement("strong");
+          s.textContent = title;
+          el.errorBox.appendChild(s);
+          el.errorBox.appendChild(document.createTextNode(msg));
+          el.errorBox.classList.add("visible");
+        }
+        function hideError() {
+          el.errorBox.classList.remove("visible");
+          el.errorBox.innerHTML = "";
+        }
+
+        /* ---------- Prompt ---------- */
+        function buildPrompt(topic, platform, tone) {
+          var platformGuide = {
+            "Instagram": "Captions can be 1-3 short lines. End each caption with 5-8 relevant hashtags on their own line.",
+            "TikTok": "Captions must be short and punchy, 1-2 lines maximum. End each with 3-5 relevant hashtags on their own line.",
+            "X": "Each caption including its hashtags must be under 270 characters. End each with 2-3 relevant hashtags on the same flow.",
+            "Facebook": "Captions can be warm and conversational, 2-3 short lines. End each with 3-5 relevant hashtags on their own line."
+          }[platform];
+          var toneGuide = {
+            "Funny": "Make them genuinely funny and light-hearted.",
+            "Motivational": "Make them uplifting and motivational.",
+            "Professional": "Make them polished and professional.",
+            "Romantic": "Make them sweet and romantic.",
+            "Roman Urdu": "Write the caption text in Roman Urdu (Urdu written in Latin letters, the way people type it in Pakistan). Hashtags stay in English.",
+            "Urdu": "Write the caption text in Urdu script. Hashtags stay in English."
+          }[tone];
+          return "Write exactly 5 ready-to-post social media captions.\n" +
+            "Platform: " + platform + "\n" +
+            "Topic: " + topic + "\n" +
+            "Tone: " + tone + ". " + toneGuide + "\n" +
+            "Platform rules: " + platformGuide + "\n" +
+            "Every caption must be different. No emojis.\n" +
+            "Format your reply EXACTLY like this, with nothing before CAPTION 1 and nothing after the last caption:\n" +
+            "CAPTION 1: <caption text>\n<hashtags>\n" +
+            "CAPTION 2: <caption text>\n<hashtags>\n" +
+            "CAPTION 3: <caption text>\n<hashtags>\n" +
+            "CAPTION 4: <caption text>\n<hashtags>\n" +
+            "CAPTION 5: <caption text>\n<hashtags>";
+        }
+
+        /* ---------- Parsing ---------- */
+        function parseCaptions(raw) {
+          var parts = raw.split(/CAPTION\s*\d+\s*:/i);
+          var blocks = [];
+          for (var i = 1; i < parts.length; i++) {
+            var block = parts[i].trim();
+            if (block) blocks.push(block);
+          }
+          if (!blocks.length) {
+            // Fallback: split on blank lines.
+            blocks = raw.split(/\n\s*\n/).map(function (s) { return s.trim(); }).filter(Boolean);
+          }
+          var out = [];
+          blocks.slice(0, 5).forEach(function (block) {
+            var tags = [];
+            var tagRe = /#[\p{L}\p{N}_]+/gu;
+            var m;
+            while ((m = tagRe.exec(block)) !== null) tags.push(m[0]);
+            var text = block.replace(tagRe, "").replace(/[ \t]+\n/g, "\n").replace(/\n{2,}/g, "\n").trim();
+            if (text || tags.length) out.push({ text: text, tags: tags });
+          });
+          return out;
+        }
+
+        /* ---------- Clipboard ---------- */
+        function copyText(text, btn) {
+          function done() {
+            if (!btn) return;
+            var label = btn.querySelector("span");
+            var original = label ? label.textContent : btn.textContent;
+            btn.classList.add("copied");
+            if (label) label.textContent = "Copied"; else btn.textContent = "Copied";
+            setTimeout(function () {
+              btn.classList.remove("copied");
+              if (label) label.textContent = original; else btn.textContent = original;
+            }, 1600);
+          }
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(done).catch(function () { legacyCopy(text); done(); });
+          } else {
+            legacyCopy(text);
+            done();
+          }
+        }
+        function legacyCopy(text) {
+          var ta = document.createElement("textarea");
+          ta.value = text;
+          ta.style.position = "fixed";
+          ta.style.opacity = "0";
+          document.body.appendChild(ta);
+          ta.select();
+          try { document.execCommand("copy"); } catch (e) { /* clipboard unavailable */ }
+          document.body.removeChild(ta);
+        }
+        function captionToText(c) {
+          return c.tags.length ? c.text + "\n" + c.tags.join(" ") : c.text;
+        }
+
+        /* ---------- Rendering results ---------- */
+        var copySvg = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+
+        function renderResults(entry, stoppedEarly) {
+          state.current = entry;
+          el.cards.innerHTML = "";
+          el.resultsTitle.textContent = "Captions for “" + entry.topic + "”";
+          el.resultsMeta.textContent = entry.platform + " · " + entry.tone + " tone · " + entry.captions.length + " caption" + (entry.captions.length === 1 ? "" : "s");
+          el.resultsHead.classList.add("visible");
+          el.noteStopped.classList.toggle("visible", !!stoppedEarly);
+
+          entry.captions.forEach(function (cap, idx) {
+            var card = document.createElement("article");
+            card.className = "card";
+
+            var top = document.createElement("div");
+            top.className = "card-top";
+            var num = document.createElement("span");
+            num.className = "card-num";
+            num.textContent = "Caption " + (idx + 1);
+            var chars = document.createElement("span");
+            chars.className = "card-chars";
+            chars.textContent = captionToText(cap).length + " characters";
+            top.appendChild(num);
+            top.appendChild(chars);
+            card.appendChild(top);
+
+            var p = document.createElement("p");
+            p.className = "card-text";
+            p.textContent = cap.text;
+            card.appendChild(p);
+
+            if (cap.tags.length) {
+              var t = document.createElement("p");
+              t.className = "card-tags";
+              t.textContent = cap.tags.join(" ");
+              card.appendChild(t);
+            }
+
+            var foot = document.createElement("div");
+            foot.className = "card-foot";
+            var btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "btn-copy";
+            btn.innerHTML = copySvg + "<span>Copy</span>";
+            btn.addEventListener("click", function () { copyText(captionToText(cap), btn); });
+            foot.appendChild(btn);
+            card.appendChild(foot);
+
+            el.cards.appendChild(card);
+          });
+        }
+
+        el.btnCopyAll.addEventListener("click", function () {
+          if (!state.current) return;
+          var all = state.current.captions.map(captionToText).join("\n\n");
+          copyText(all, el.btnCopyAll);
+        });
+
+        /* ---------- History (localStorage, last 8) ---------- */
+        function loadHistory() {
+          try {
+            var raw = localStorage.getItem(HISTORY_KEY);
+            var arr = raw ? JSON.parse(raw) : [];
+            return Array.isArray(arr) ? arr : [];
+          } catch (e) { return []; }
+        }
+        function saveHistory(entry) {
+          try {
+            var arr = loadHistory();
+            arr.unshift(entry);
+            arr = arr.slice(0, HISTORY_MAX);
+            localStorage.setItem(HISTORY_KEY, JSON.stringify(arr));
+          } catch (e) { /* storage unavailable */ }
+          renderHistory();
+        }
+        function timeAgo(ts) {
+          var s = Math.floor((Date.now() - ts) / 1000);
+          if (s < 60) return "just now";
+          var m = Math.floor(s / 60);
+          if (m < 60) return m + " min ago";
+          var h = Math.floor(m / 60);
+          if (h < 24) return h + (h === 1 ? " hour ago" : " hours ago");
+          var d = Math.floor(h / 24);
+          return d + (d === 1 ? " day ago" : " days ago");
+        }
+        function renderHistory() {
+          var arr = loadHistory();
+          el.recentList.innerHTML = "";
+          el.recentSection.classList.toggle("visible", arr.length > 0);
+          arr.forEach(function (entry) {
+            var b = document.createElement("button");
+            b.type = "button";
+            b.className = "recent-item";
+            var left = document.createElement("span");
+            left.className = "recent-topic";
+            left.textContent = entry.topic;
+            var right = document.createElement("span");
+            right.className = "recent-meta";
+            right.textContent = entry.platform + " · " + entry.tone + " · " + timeAgo(entry.ts);
+            b.appendChild(left);
+            b.appendChild(right);
+            b.addEventListener("click", function () {
+              hideError();
+              el.noteStopped.classList.remove("visible");
+              renderResults(entry, false);
+              el.resultsHead.scrollIntoView({ behavior: "smooth", block: "start" });
+            });
+            el.recentList.appendChild(b);
+          });
+        }
+        el.btnClearHistory.addEventListener("click", function () {
+          try { localStorage.removeItem(HISTORY_KEY); } catch (e) { /* ignore */ }
+          renderHistory();
+        });
+        renderHistory();
+
+        /* ---------- Generation (SSE stream) ---------- */
+        function setGenerating(on) {
+          state.generating = on;
+          el.btnGenerate.disabled = on;
+          el.btnStop.classList.toggle("visible", on);
+          el.streamBox.classList.toggle("visible", on);
+        }
+
+        function generate(topic) {
+          hideError();
+          el.cards.innerHTML = "";
+          el.resultsHead.classList.remove("visible");
+          el.noteStopped.classList.remove("visible");
+          el.streamBox.innerHTML = "";
+
+          var label = document.createElement("div");
+          label.className = "gen-label";
+          var spin = document.createElement("span");
+          spin.className = "spinner";
+          label.appendChild(spin);
+          label.appendChild(document.createTextNode("Writing your captions…"));
+          el.streamBox.appendChild(label);
+          var live = document.createElement("div");
+          el.streamBox.appendChild(live);
+
+          setGenerating(true);
+          var controller = new AbortController();
+          state.controller = controller;
+          var stopped = false;
+          var fullText = "";
+
+          var platform = state.platform;
+          var tone = state.tone;
+
+          function finish(ok) {
+            setGenerating(false);
+            state.controller = null;
+            if (!ok) return;
+            var captions = parseCaptions(fullText);
+            if (!captions.length) {
+              showError("No captions came back.", "The AI service replied, but not in a form that could be read as captions. Please try again — rewording the topic often helps.");
+              return;
+            }
+            var entry = { topic: topic, platform: platform, tone: tone, captions: captions, ts: Date.now() };
+            renderResults(entry, stopped);
+            saveHistory(entry);
+          }
+
+          fetch(API_BASE + "/api/chat", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-API-Key": "DarkTech"
+            },
+            body: JSON.stringify({ q: buildPrompt(topic, platform, tone) }),
+            signal: controller.signal
+          }).then(function (res) {
+            if (!res.ok) {
+              throw new Error("HTTP " + res.status);
+            }
+            if (!res.body || !res.body.getReader) {
+              return res.text().then(function (t) { fullText = t; });
+            }
+            var reader = res.body.getReader();
+            var decoder = new TextDecoder();
+            var buffer = "";
+            function pump() {
+              return reader.read().then(function (result) {
+                if (result.done) return;
+                buffer += decoder.decode(result.value, { stream: true });
+                var lines = buffer.split("\n");
+                buffer = lines.pop();
+                lines.forEach(function (line) {
+                  line = line.trim();
+                  if (line.indexOf("data:") !== 0) return;
+                  var payload = line.slice(5).trim();
+                  if (payload === "[DONE]") return;
+                  try {
+                    var obj = JSON.parse(payload);
+                    if (typeof obj.chunk === "string") {
+                      fullText += obj.chunk;
+                      live.textContent = fullText;
+                    }
+                  } catch (e) { /* partial JSON line — wait for more */ }
+                });
+                return pump();
+              });
+            }
+            return pump();
+          }).then(function () {
+            finish(true);
+          }).catch(function (err) {
+            if (err && err.name === "AbortError") {
+              stopped = true;
+              finish(fullText.trim().length > 0);
+              if (!fullText.trim()) {
+                setGenerating(false);
+                showError("Generation stopped.", "You stopped the request before any captions arrived. Press Generate to try again.");
+              }
+              return;
+            }
+            setGenerating(false);
+            state.controller = null;
+            var msg = "The request to the Dark Tech Zone AI service failed";
+            if (err && /^HTTP \d+$/.test(err.message || "")) {
+              msg += " (" + err.message + ")";
+            }
+            showError("Could not generate captions.", msg + ". Check your connection and try again in a moment. If the status pill above shows the service as offline, please wait and retry later.");
+          });
+        }
+
+        el.btnStop.addEventListener("click", function () {
+          if (state.controller) state.controller.abort();
+        });
+
+        el.form.addEventListener("submit", function (ev) {
+          ev.preventDefault();
+          if (state.generating) return;
+          var topic = el.topic.value.trim();
+          if (!topic) {
+            showError("Add a topic first.", "Type a topic or a few keywords — for example “morning coffee” or “new phone launch” — or tap one of the example chips.");
+            el.topic.focus();
+            return;
+          }
+          generate(topic);
+        });
+      })();
+    </script>
+  </body>
+</html>
